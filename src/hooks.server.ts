@@ -3,10 +3,11 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { remultSveltekit } from 'remult/remult-sveltekit';
 import { Task } from './shared/Task';
 import { TaskController } from './shared/TaskController';
+import { createPostgresDataProvider } from 'remult/postgres';
 
 import { SvelteKitAuth } from '@auth/sveltekit';
 import CredentialsProvider from '@auth/core/providers/credentials';
-import { AUTHJS_SECRET } from '$env/static/private';
+import { DATABASE_URL, NEXTAUTH_SECRET } from '$env/static/private';
 import type { UserInfo } from 'remult';
 
 const usersDB = [
@@ -21,7 +22,10 @@ function findUser(name?: string | null) {
 const handleRemult = remultSveltekit({
 	entities: [Task],
 	controllers: [TaskController],
-	getUser: async (event) => ((await event.locals?.getSession())?.user as UserInfo) || undefined
+	getUser: async (event) => ((await event.locals?.getSession())?.user as UserInfo) || undefined,
+	dataProvider: createPostgresDataProvider({
+		connectionString: DATABASE_URL
+	})
 });
 
 const handleAuth = SvelteKitAuth({
@@ -34,7 +38,8 @@ const handleAuth = SvelteKitAuth({
 			authorize: (credentials) => findUser(credentials?.name as string) || null
 		})
 	],
-	secret: AUTHJS_SECRET,
+	trustHost: true,
+	secret: NEXTAUTH_SECRET,
 	callbacks: {
 		session: ({ session }) => ({ ...session, user: findUser(session.user?.name) })
 	}
